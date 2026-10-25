@@ -29,6 +29,18 @@ from the example if it doesn't exist, and starts the `dashboard` OpenRC
 service on port 8080 (logs: `/var/log/dashboard.log`). Edit the config, then
 `rc-service dashboard restart`. Re-run the same command to update.
 
+### Managing the services
+
+```sh
+/opt/dashboard/scripts/start.sh            # or stop.sh, restart.sh, status.sh
+/opt/dashboard/scripts/restart.sh all      # dashboard and cloudflared
+/opt/dashboard/scripts/status.sh cloudflared
+```
+
+These wrap `rc-service`. After a start or restart they wait until the
+dashboard answers and, if it doesn't, print the end of its log. Restart
+after editing `/etc/dashboard/config.yaml`.
+
 ### Cloudflare Tunnel
 
 Create a tunnel in the Cloudflare dashboard (Zero Trust > Networks > Tunnels),
