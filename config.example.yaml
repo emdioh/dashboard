@@ -26,6 +26,8 @@ services:
     repo_dir: /srv/myapp
     default_ref: production        # used when the ref box is left empty
     steps:                         # run in repo_dir after checkout; any failure stops the deploy
+                                   # (the dashboard fetches and checks out the ref itself:
+                                   #  don't add `git checkout` / `git pull` here)
       - ./scripts/pre-deploy.sh
       - docker compose down
       - docker compose up -d --build

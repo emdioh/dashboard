@@ -78,7 +78,9 @@ machines to SSH into and `services` are git clones on those hosts:
 | `steps` | shell commands run in `repo_dir` after checkout; the first failure stops the deploy |
 
 Steps can use `$DEPLOY_REF` and `$DEPLOY_SHA`. The checkout is a detached
-HEAD at the chosen commit; local edits to tracked files make the checkout
+HEAD at the chosen commit, so steps shouldn't run `git checkout` or
+`git pull` (`git pull` fails on a detached HEAD); use `cmd || true` for a
+step that may fail harmlessly; local edits to tracked files make the checkout
 fail rather than being thrown away.
 
 Restart the service after editing the config.
