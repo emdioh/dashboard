@@ -1,7 +1,11 @@
+import hashlib
+import re
+
 import httpx2 as httpx
 import pytest
 from fastapi.testclient import TestClient
 
+from dashboard import app as app_module
 from dashboard import ssh
 from dashboard.app import create_app
 from dashboard.config import App, Config
@@ -85,6 +89,14 @@ def test_apps_page_is_home(make_client):
 
         services = client.get("/services").text
         assert 'aria-current="page">Deploy Services' in services
+
+
+def test_stylesheet_url_changes_with_its_content(make_client):
+    css = (app_module.HERE / "static/dashboard.css").read_bytes()
+    with make_client() as client:
+        href = re.search(r'href="(/static/dashboard\.css\?v=\w+)"', client.get("/").text).group(1)
+        assert href.endswith(hashlib.sha256(css).hexdigest()[:10])
+        assert client.get(href).content == css
 
 
 def test_proxy_strips_frame_blocking(make_client):

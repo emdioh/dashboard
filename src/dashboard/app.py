@@ -1,5 +1,6 @@
 """FastAPI web UI. Authentication is expected in front (e.g. Cloudflare Access)."""
 
+import hashlib
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -16,6 +17,8 @@ from .deploy import Deployer
 HERE = Path(__file__).parent
 templates = Jinja2Templates(directory=HERE / "templates")
 templates.env.filters["ts"] = lambda t: time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t)) if t else ""
+# Versioned stylesheet URL, so browsers and Cloudflare never serve a stale copy after an update.
+templates.env.globals["css_version"] = hashlib.sha256((HERE / "static/dashboard.css").read_bytes()).hexdigest()[:10]
 
 
 def create_app(cfg: config.Config | None = None, http_transport: httpx.AsyncBaseTransport | None = None) -> FastAPI:
