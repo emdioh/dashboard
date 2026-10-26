@@ -27,7 +27,15 @@ fi
 
 if [ -d "$DIR/.git" ]; then
     log "updating $DIR"
-    git -C "$DIR" pull --ff-only -q
+    # Reset rather than pull, so an update also works after the branch's
+    # history was rewritten. Local edits would be lost, so refuse them.
+    if [ -n "$(git -C "$DIR" status --porcelain --untracked-files=no)" ]; then
+        git -C "$DIR" status --short --untracked-files=no >&2
+        die "$DIR has local changes; commit or discard them (git -C $DIR checkout -- .) and re-run"
+    fi
+    git -C "$DIR" fetch -q origin "$BRANCH"
+    git -C "$DIR" checkout -q -B "$BRANCH" FETCH_HEAD
+    git -C "$DIR" branch -q --set-upstream-to="origin/$BRANCH" 2>/dev/null || true
 else
     log "cloning $REPO ($BRANCH) into $DIR"
     git clone -q -b "$BRANCH" "$REPO" "$DIR"
