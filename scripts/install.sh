@@ -18,7 +18,7 @@ die() { printf 'error: %s\n' "$*" >&2; exit 1; }
 [ -f /etc/alpine-release ] || die "this script is for Alpine Linux"
 
 log "installing packages"
-apk add --no-cache python3 git openssh-client openssh-keygen curl >/dev/null
+apk add --no-cache python3 bash git openssh-client openssh-keygen curl >/dev/null
 
 if ! command -v uv >/dev/null 2>&1; then
     log "installing uv"

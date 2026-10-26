@@ -5,21 +5,27 @@
   <div class="row">
     <div class="grow">
       <strong>{{ s.name }}</strong>
-      <span class="muted">on {{ s.host }} · {{ s.repo_dir }}</span>
+      <span class="muted">on {{ s.host or "this machine" }}{% if s.workdir %} · {{ s.workdir }}{% endif %}{% if not s.is_git %} · commands{% endif %}</span>
       {% if s.description %}<div class="muted">{{ s.description }}</div>{% endif %}
       {% set j = last.get(s.name) %}
       {% if j %}
       <div class="muted">
         last: <a href="/jobs/{{ j.id }}"><span class="status {{ j.status }}">{{ j.status }}</span></a>
-        · {{ j.ref }} · {{ j.started | ts }}
+        {% if j.ref %}· {{ j.ref }} {% endif %}· {{ j.started | ts }}
       </div>
       {% endif %}
     </div>
     <form class="row" hx-post="/services/{{ s.name }}/deploy" hx-target="#err-{{ loop.index }}"
-          hx-confirm="Redeploy {{ s.name }}?">
+          hx-confirm="{{ 'Redeploy' if s.is_git else 'Run' }} {{ s.name }}?">
+      {% if s.is_git %}
       <input type="text" name="ref" placeholder="{{ s.default_ref or 'default branch' }}"
              title="Branch, tag or commit hash. Leave empty for the default.">
       <button>Redeploy</button>
+      {% else %}
+      <input type="text" name="ref" placeholder="{{ s.default_ref or 'argument (optional)' }}"
+             title="Passed to the steps as $DEPLOY_REF. Leave empty for the default.">
+      <button>Run</button>
+      {% endif %}
     </form>
   </div>
   <div id="err-{{ loop.index }}"></div>

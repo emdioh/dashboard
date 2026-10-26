@@ -1,13 +1,16 @@
 # Dashboard
 
-A small web UI for redeploying services on the other machines of a Proxmox
-server with one click. Each service is a git clone on its host; a redeploy:
+A small web UI for redeploying services on the machines of a Proxmox server
+with one click. A service is usually a git clone on its host; a redeploy:
 
 1. `git fetch` in the service's directory,
 2. checks out the remote's default branch, or a branch, tag or commit hash
    you type in,
 3. runs the service's steps — by default `docker compose pull` and
    `docker compose up -d --build`, or your own commands/scripts.
+
+A service can also be just a list of commands, with no git involved, and it
+can run on the dashboard's own machine instead of over SSH.
 
 The output streams live in the browser and every run is kept in the history.
 
@@ -68,20 +71,40 @@ then `rc-update add sshd && rc-service sshd start`).
 ## Configuration
 
 See [`config.example.yaml`](config.example.yaml). In short, `hosts` are the
-machines to SSH into and `services` are git clones on those hosts:
+machines to SSH into and `services` are what you deploy or run:
 
 | Service field | Meaning |
 | --- | --- |
-| `host` | name of a host in `hosts` |
-| `repo_dir` | path of the git clone on that host |
-| `default_ref` | branch/tag/hash used when the ref box is empty; omit for the remote's default branch |
-| `steps` | shell commands run in `repo_dir` after checkout; the first failure stops the deploy |
+| `host` | name of a host in `hosts`; omit to run on the dashboard's own machine (no SSH) |
+| `repo_dir` | path of a git clone: the deploy checks out a ref there, then runs the steps |
+| `dir` | for services without `repo_dir`: where the steps run (default: the user's home) |
+| `default_ref` | value used when the ref box is empty: a branch/tag/hash for git services (omit for the remote's default branch), an argument for the others |
+| `steps` | shell commands, run in order; the first failure stops the deploy. Defaults to the docker compose steps for git services, required for the others |
+| `description` | shown under the name |
 
-Steps can use `$DEPLOY_REF` and `$DEPLOY_SHA`. The checkout is a detached
-HEAD at the chosen commit, so steps shouldn't run `git checkout` or
-`git pull` (`git pull` fails on a detached HEAD); use `cmd || true` for a
-step that may fail harmlessly; local edits to tracked files make the checkout
-fail rather than being thrown away.
+There are four kinds of service, from `host` and `repo_dir`:
+
+| | `repo_dir` set (git) | no `repo_dir` (commands) |
+| --- | --- | --- |
+| `host` set | checkout + steps over SSH | steps over SSH |
+| no `host` | checkout + steps on the dashboard machine | steps on the dashboard machine |
+
+**Git services:** steps can use `$DEPLOY_REF` and `$DEPLOY_SHA`. The
+checkout is a detached HEAD at the chosen commit, so steps shouldn't run
+`git checkout` or `git pull` (`git pull` fails on a detached HEAD). Local
+edits to tracked files make the checkout fail rather than being thrown away.
+
+**Command services:** the button reads *Run* and the box takes an optional
+argument (same characters as a git ref: letters, digits, `._/+@-`), passed
+to the steps as `$DEPLOY_REF`. To run a script, make it a step:
+`./backup.sh "$DEPLOY_REF"`.
+
+**Local services** run as the dashboard's user (root under the OpenRC
+service) and need no SSH setup.
+
+In every kind, steps run in one bash function with `set -euo pipefail`, so
+variables carry over between steps; use `cmd || true` for a step that may
+fail harmlessly.
 
 Restart the service after editing the config.
 

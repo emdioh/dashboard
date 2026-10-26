@@ -2,7 +2,7 @@
 {% block title %}{{ job.service }} deploy{% endblock %}
 {% block content %}
 <div class="card">
-  <strong>{{ job.service }}</strong> <span class="muted">@ {{ job.ref }} · started {{ job.started | ts }}</span>
+  <strong>{{ job.service }}</strong> <span class="muted">{% if job.ref %}@ {{ job.ref }} · {% endif %}started {{ job.started | ts }}</span>
   {% include "_log.html" %}
 </div>
 {% endblock %}

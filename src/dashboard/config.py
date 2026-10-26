@@ -29,12 +29,33 @@ class Host:
 
 @dataclass
 class Service:
+    """Something the dashboard can redeploy.
+
+    With `repo_dir` it is a git clone: the deploy checks out a ref, then runs
+    the steps there. Without it the steps are plain commands, run in `dir`
+    (or the user's home), and the ref box becomes an optional argument.
+    With no `host` the steps run on the dashboard's own machine.
+    """
+
     name: str
-    host: str
-    repo_dir: str
-    default_ref: str = ""  # empty means the remote's default branch (origin/HEAD)
+    host: str = ""  # empty means the dashboard's machine, without SSH
+    repo_dir: str = ""
+    dir: str = ""
+    default_ref: str = ""  # git: empty means the remote's default branch (origin/HEAD)
     steps: list[str] = field(default_factory=lambda: list(DEFAULT_STEPS))
     description: str = ""
+
+    @property
+    def is_git(self) -> bool:
+        return bool(self.repo_dir)
+
+    @property
+    def is_local(self) -> bool:
+        return not self.host
+
+    @property
+    def workdir(self) -> str:
+        return self.repo_dir or self.dir
 
 
 @dataclass
@@ -81,8 +102,12 @@ def load(path: Path | None = None) -> Config:
     services = {}
     for name, s in (raw.get("services") or {}).items():
         service = Service(name=name, **s)
-        if service.host not in hosts:
+        if service.host and service.host not in hosts:
             raise ValueError(f"service {name!r} uses unknown host {service.host!r}")
+        if service.repo_dir and service.dir:
+            raise ValueError(f"service {name!r} has both repo_dir and dir: use one")
+        if not service.repo_dir and "steps" not in s:
+            raise ValueError(f"service {name!r} has no repo_dir, so it needs steps")
         if not service.steps:
             raise ValueError(f"service {name!r} has an empty steps list")
         services[name] = service

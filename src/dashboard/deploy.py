@@ -1,4 +1,4 @@
-"""Run redeploys on remote hosts and keep a record of each one."""
+"""Run redeploys, on remote hosts or locally, and keep a record of each one."""
 
 import asyncio
 import json
@@ -15,10 +15,10 @@ from .config import Config, Service
 # metacharacters and anything git would treat as an option.
 REF_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/+@-]*$")
 
-# Runs on the target with `bash -s -- <repo_dir> <ref>`. Everything lives in
-# a function so bash has read the whole script before any step runs, and
-# stdin is closed so a step can't swallow the rest of the script.
-SCRIPT_TEMPLATE = r"""set -euo pipefail
+# Both scripts run on the target with `bash -s -- <dir> <ref>`. Everything
+# lives in a function so bash has read the whole script before any step
+# runs, and stdin is closed so a step can't swallow the rest of the script.
+GIT_TEMPLATE = r"""set -euo pipefail
 deploy() {
   cd "$1"
   local ref=$2 target sha
@@ -43,6 +43,19 @@ __STEPS__
 deploy "$@" </dev/null
 """
 
+# For services without a repo: the steps alone, with the ref box's value
+# (if any) as $DEPLOY_REF.
+COMMANDS_TEMPLATE = r"""set -euo pipefail
+deploy() {
+  cd "${1:-${HOME:-/}}"
+  export DEPLOY_REF=$2
+  echo "==> on $(hostname) in $(pwd)${DEPLOY_REF:+, DEPLOY_REF=$DEPLOY_REF}"
+__STEPS__
+  echo "==> done"
+}
+deploy "$@" </dev/null
+"""
+
 
 def validate_ref(ref: str) -> str:
     ref = ref.strip()
@@ -56,7 +69,16 @@ def build_script(service: Service) -> str:
     for step in service.steps:
         lines.append(f"  echo {shlex.quote('==> ' + step)}")
         lines.append(f"  {step}")
-    return SCRIPT_TEMPLATE.replace("__STEPS__", "\n".join(lines))
+    template = GIT_TEMPLATE if service.is_git else COMMANDS_TEMPLATE
+    return template.replace("__STEPS__", "\n".join(lines))
+
+
+def command_argv(cfg: Config, service: Service, ref: str) -> list[str]:
+    """The command that runs the deploy script, reading it from stdin."""
+    args = ["bash", "-s", "--", service.workdir, ref]
+    if service.is_local:
+        return args
+    return ssh.ssh_argv(cfg, cfg.hosts[service.host], shlex.join(args))
 
 
 @dataclass
@@ -88,7 +110,7 @@ class Deployer:
         job = Job(
             id=time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6],
             service=service_name,
-            ref=ref or "(default branch)",
+            ref=ref or ("(default branch)" if service.is_git else ""),
             started=time.time(),
         )
         self.running[job.id] = job
@@ -109,11 +131,9 @@ class Deployer:
             log.write(line + "\n")
             log.flush()
 
-        host = self.cfg.hosts[service.host]
-        remote = f"bash -s -- {shlex.quote(service.repo_dir)} {shlex.quote(ref)}"
         try:
             proc = await asyncio.create_subprocess_exec(
-                *ssh.ssh_argv(self.cfg, host, remote),
+                *command_argv(self.cfg, service, ref),
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,

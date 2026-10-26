@@ -33,6 +33,24 @@ services:
       - docker compose up -d --build
     # Steps also see $DEPLOY_REF and $DEPLOY_SHA.
 
+  trains:                          # no host: runs on the dashboard's own machine
+    repo_dir: /opt/trains
+    default_ref: trains
+    steps:
+      - sh deploy/install-release.sh
+
+  upgrade-media:                   # no repo_dir: just commands, no git
+    host: media
+    description: Upgrade Alpine packages
+    steps:
+      - apk update
+      - apk upgrade
+
+  backup:                          # commands on the dashboard's machine
+    dir: /srv/backups              # where the steps run (default: home)
+    steps:
+      - ./backup.sh "$DEPLOY_REF"  # the box's value, if any, is $DEPLOY_REF
+
 # Web utilities shown in the dashboard's menu. Each one's page is displayed
 # inside the dashboard, proxied through it under /proxy/<name>/, so it only
 # needs to be reachable from the dashboard (and sits behind its login).
