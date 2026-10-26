@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Apps{% endblock %}
+{% block content %}
+<div class="app-grid">
+  {% for a in apps.values() %}
+  <a class="card app-card" href="/apps/{{ a.name }}">
+    <strong>{{ a.title }}</strong>
+    {% if a.description %}<div class="muted">{{ a.description }}</div>{% endif %}
+  </a>
+  {% endfor %}
+</div>
+{% endblock %}

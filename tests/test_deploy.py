@@ -117,7 +117,8 @@ def test_web_deploy_end_to_end(repo, tmp_path, monkeypatch):
         services={"s": Service(name="s", host="h", repo_dir=str(clone), steps=["cat f > out"])},
     )
     with TestClient(create_app(cfg)) as client:
-        assert "Redeploy" in client.get("/").text
+        assert "Redeploy" in client.get("/services").text
+        assert client.get("/", follow_redirects=False).headers["location"] == "/services"  # no apps
         r = client.post("/services/s/deploy", data={"ref": "v1"})
         job_url = r.headers["HX-Redirect"]
         for _ in range(100):
@@ -209,7 +210,7 @@ def test_web_local_commands_end_to_end(tmp_path, monkeypatch):
         services={"s": Service(name="s", dir=str(work), steps=['echo "$DEPLOY_REF" > out'])},
     )
     with TestClient(create_app(cfg)) as client:
-        index = client.get("/").text
+        index = client.get("/services").text
         assert "this machine" in index and ">Run<" in index
         job_url = client.post("/services/s/deploy", data={"ref": "v3"}).headers["HX-Redirect"]
         for _ in range(100):

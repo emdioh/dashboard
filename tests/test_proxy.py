@@ -70,14 +70,21 @@ def make_client(tmp_path, monkeypatch):
     return make
 
 
-def test_menu_and_app_page(make_client):
+def test_apps_page_is_home(make_client):
     with make_client() as client:
-        index = client.get("/").text
-        assert 'href="/apps/trains"' in index and "Trains" in index
+        home = client.get("/").text
+        assert '<a class="card app-card" href="/apps/trains">' in home and "Trains" in home
+        assert 'href="/" aria-current="page">Apps' in home
+        assert 'href="/services" >Deploy Services' in home
+
         page = client.get("/apps/trains").text
         assert '<iframe class="app-frame" src="/proxy/trains/"' in page
-        assert 'aria-current="page">Trains' in page
+        assert '<span class="crumb">Trains</span>' in page
+        assert 'aria-current="page">Apps' in page  # Apps stays highlighted inside an app
         assert client.get("/apps/nope").status_code == 404
+
+        services = client.get("/services").text
+        assert 'aria-current="page">Deploy Services' in services
 
 
 def test_proxy_strips_frame_blocking(make_client):

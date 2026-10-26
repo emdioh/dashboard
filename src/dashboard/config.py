@@ -60,11 +60,12 @@ class Service:
 
 @dataclass
 class App:
-    """A web utility shown in the dashboard's menu and proxied under /proxy/<name>/."""
+    """A web utility listed on the Apps page and proxied under /proxy/<name>/."""
 
     name: str
     url: str
     title: str = ""
+    description: str = ""
 
     def __post_init__(self):
         self.url = self.url.rstrip("/")

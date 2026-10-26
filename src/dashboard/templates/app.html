@@ -1,3 +1,4 @@
 {% extends "base.html" %}
 {% block title %}{{ app.title }}{% endblock %}
+{% block crumb %}<span class="crumb">{{ app.title }}</span>{% endblock %}
 {% block main %}<iframe class="app-frame" src="/proxy/{{ app.name }}/" title="{{ app.title }}"></iframe>{% endblock %}

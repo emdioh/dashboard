@@ -35,9 +35,16 @@ def create_app(cfg: config.Config | None = None, http_transport: httpx.AsyncBase
         return templates.TemplateResponse(request, name, {"apps": request.app.state.cfg.apps, **ctx})
 
     @app.get("/")
-    def index(request: Request):
+    def home(request: Request):
+        apps = request.app.state.cfg.apps
+        if not apps:
+            return RedirectResponse("/services")
+        return render(request, "apps.html")
+
+    @app.get("/services")
+    def services(request: Request):
         st = request.app.state
-        return render(request, "index.html", cfg=st.cfg, last=st.deployer.last_per_service())
+        return render(request, "services.html", cfg=st.cfg, last=st.deployer.last_per_service())
 
     @app.post("/services/{name}/deploy")
     async def deploy(request: Request, name: str, ref: str = Form("")):

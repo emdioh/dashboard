@@ -110,9 +110,10 @@ Restart the service after editing the config.
 
 ## Apps
 
-Small web utilities can be added to the dashboard's menu under `apps` in the
-config (`title` and `url`). Selecting one shows its page inside the
-dashboard; requests go through the dashboard to the app at
+Small web utilities can be added under `apps` in the config (`title`, `url`
+and an optional `description`). They are listed on the **Apps** page, which
+is the dashboard's home page (without apps, the home page is **Deploy
+Services**). Selecting one shows its page inside the dashboard; requests go through the dashboard to the app at
 `/proxy/<name>/…`, so the app only needs to be reachable from the dashboard
 LXC and is covered by the same Cloudflare Access login.
 

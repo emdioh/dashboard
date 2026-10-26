@@ -10,14 +10,15 @@
 <body>
   {% set path = request.url.path %}
   <header>
-    <strong>Dashboard</strong>
-    <a href="/" {% if path == "/" %}aria-current="page"{% endif %}>Services</a>
-    <a href="/history" {% if path == "/history" %}aria-current="page"{% endif %}>History</a>
-    <a href="/ssh" {% if path == "/ssh" %}aria-current="page"{% endif %}>SSH setup</a>
-    {% if apps %}<span class="sep"></span>{% endif %}
-    {% for a in apps.values() %}
-    <a href="/apps/{{ a.name }}" {% if path == "/apps/" ~ a.name %}aria-current="page"{% endif %}>{{ a.title }}</a>
-    {% endfor %}
+    <a class="brand" href="/">Dashboard</a>{% block crumb %}{% endblock %}
+    <nav>
+      {% if apps %}
+      <a href="/" {% if path == "/" or path.startswith("/apps/") %}aria-current="page"{% endif %}>Apps</a>
+      {% endif %}
+      <a href="/services" {% if path == "/services" %}aria-current="page"{% endif %}>Deploy Services</a>
+      <a href="/history" {% if path == "/history" %}aria-current="page"{% endif %}>History</a>
+      <a href="/ssh" {% if path == "/ssh" %}aria-current="page"{% endif %}>SSH setup</a>
+    </nav>
   </header>
   {% block main %}<main>{% block content %}{% endblock %}</main>{% endblock %}
 </body>

@@ -51,10 +51,11 @@ services:
     steps:
       - ./backup.sh "$DEPLOY_REF"  # the box's value, if any, is $DEPLOY_REF
 
-# Web utilities shown in the dashboard's menu. Each one's page is displayed
-# inside the dashboard, proxied through it under /proxy/<name>/, so it only
-# needs to be reachable from the dashboard (and sits behind its login).
+# Web utilities listed on the Apps page (the home page). Each one's page is
+# displayed inside the dashboard, proxied through it under /proxy/<name>/, so
+# it only needs to be reachable from the dashboard (and sits behind its login).
 apps:
   trains:
     title: Train punctuality
     url: http://10.0.0.30:5000
+    description: Delays on my usual connections   # optional, shown on the Apps page
