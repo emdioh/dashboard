@@ -98,16 +98,20 @@ For an app to work behind that prefix:
 - Use **relative URLs** for its own pages, assets and API calls
   (`static/app.js`, `api/delays`, `fetch("api/delays")`), not ones starting
   with `/`. Requests to `/…` would go to the dashboard instead of the app.
-- Redirects to `/…` and to the app's own URL are rewritten automatically,
-  and each request carries `X-Forwarded-Prefix: /proxy/<name>` for
-  frameworks that can build URLs from it.
+- Redirects to `/…` and to the app's own URL are rewritten automatically.
+- Each request carries `X-Forwarded-Prefix: /proxy/<name>`, plus
+  `X-Forwarded-Host` and `X-Forwarded-Proto` with the browser-facing host
+  and scheme (e.g. `dash.example.com`, `https`). The `Host` header is the
+  app's own, so an app that compares the browser's `Origin` with the host
+  (a common CSRF check) must use `X-Forwarded-Host`.
 - Frame-blocking headers (`X-Frame-Options`, CSP `frame-ancestors`) are
   removed so the page can be shown inside the dashboard.
 - To match the dashboard's look (including dark mode), link
   `/static/dashboard.css` and use its classes (`card`, `row`, `muted`, …).
 
-WebSockets aren't proxied yet; plain HTTP, long polling and server-sent
-events work.
+HTTP (including long polling and server-sent events) and WebSockets are
+proxied; WebSocket subprotocols are passed through, so apps can
+authenticate with them.
 
 ## Setting up SSH access
 

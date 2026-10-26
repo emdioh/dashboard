@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx2 as httpx
-from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi import FastAPI, Form, HTTPException, Request, WebSocket
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -101,5 +101,13 @@ def create_app(cfg: config.Config | None = None, http_transport: httpx.AsyncBase
     @app.api_route("/proxy/{name}/{path:path}", methods=["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
     async def proxy_request(request: Request, name: str, path: str):
         return await proxy.forward(request.app.state.http, get_app(request, name), path, request)
+
+    @app.websocket("/proxy/{name}/{path:path}")
+    async def proxy_websocket(websocket: WebSocket, name: str, path: str):
+        app_cfg = websocket.app.state.cfg.apps.get(name)
+        if not app_cfg:
+            await websocket.close(code=1008)
+            return
+        await proxy.forward_websocket(app_cfg, path, websocket)
 
     return app

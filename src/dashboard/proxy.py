@@ -1,11 +1,15 @@
 """Reverse proxy that serves each configured app under /proxy/<name>/."""
 
+import asyncio
 import re
 
 import httpx2 as httpx
 from starlette.background import BackgroundTask
-from starlette.requests import Request
+from starlette.requests import HTTPConnection, Request
 from starlette.responses import PlainTextResponse, Response, StreamingResponse
+from starlette.websockets import WebSocket, WebSocketDisconnect
+from websockets.asyncio.client import connect as ws_connect
+from websockets.exceptions import ConnectionClosed, InvalidHandshake, InvalidStatus
 
 from .config import App
 
@@ -34,7 +38,7 @@ def rewrite_location(location: str, app: App) -> str:
     return location
 
 
-def request_headers(request: Request, app: App) -> list[tuple[str, str]]:
+def request_headers(request: HTTPConnection, app: App) -> list[tuple[str, str]]:
     headers = [
         (k, v) for k, v in request.headers.items()
         if k not in HOP_BY_HOP and k != "host" and not k.startswith("x-forwarded-")
@@ -87,3 +91,73 @@ async def forward(client: httpx.AsyncClient, app: App, path: str, request: Reque
     )
     response.raw_headers = response_headers(resp, app)
     return response
+
+
+def close_code(code: int | None) -> int:
+    """`code` if it may be sent in a close frame, else a normal closure (1000)."""
+    if code is not None and (1000 <= code <= 1014 and code not in (1004, 1005, 1006) or 3000 <= code < 5000):
+        return code
+    return 1000
+
+
+async def forward_websocket(app: App, path: str, websocket: WebSocket) -> None:
+    """Relay a WebSocket between the browser and the app until either side closes."""
+    url = re.sub(r"^http", "ws", app.url) + "/" + path
+    if websocket.url.query:
+        url += "?" + websocket.url.query
+    # The client library sets its own handshake headers (Host, Sec-WebSocket-*).
+    headers = [
+        (k, v) for k, v in request_headers(websocket, app)
+        if not k.startswith("sec-websocket-") and k != "user-agent"
+    ]
+    try:
+        upstream = await ws_connect(
+            url,
+            subprotocols=websocket.scope.get("subprotocols") or None,
+            additional_headers=headers,
+            user_agent_header=websocket.headers.get("user-agent"),
+            compression=None,
+            max_size=None,
+            open_timeout=10,
+            proxy=None,
+        )
+    except InvalidStatus as e:
+        # Refused by the app (e.g. 401/403): refuse the browser's handshake too.
+        await websocket.close(code=1008, reason=f"{app.title} refused: HTTP {e.response.status_code}")
+        return
+    except (OSError, InvalidHandshake, asyncio.TimeoutError):
+        await websocket.close(code=1011, reason=f"{app.title} is not reachable")
+        return
+
+    async with upstream:
+        await websocket.accept(subprotocol=upstream.subprotocol)
+
+        async def browser_to_app():
+            while True:
+                message = await websocket.receive()
+                if message["type"] == "websocket.disconnect":
+                    raise WebSocketDisconnect(message.get("code", 1000))
+                await upstream.send(message["text"] if message.get("text") is not None else message["bytes"])
+
+        async def app_to_browser():
+            async for message in upstream:
+                if isinstance(message, str):
+                    await websocket.send_text(message)
+                else:
+                    await websocket.send_bytes(message)
+
+        tasks = [asyncio.create_task(browser_to_app()), asyncio.create_task(app_to_browser())]
+        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        for task in pending:
+            task.cancel()
+        await asyncio.gather(*pending, return_exceptions=True)
+
+        error = next(iter(done)).exception()
+        if isinstance(error, WebSocketDisconnect):
+            await upstream.close(code=close_code(error.code))
+        elif error is None or isinstance(error, ConnectionClosed):
+            # The app closed (or dropped) the connection: pass its close code on.
+            await websocket.close(code=close_code(upstream.close_code), reason=upstream.close_reason or "")
+        else:
+            await websocket.close(code=1011)
+            raise error

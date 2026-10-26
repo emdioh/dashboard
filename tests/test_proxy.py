@@ -44,6 +44,8 @@ def respond(request: httpx.Request) -> httpx.Response:
             "body": request.content.decode(),
             "prefix": request.headers.get("x-forwarded-prefix"),
             "host": request.headers.get("host"),
+            "forwarded_host": request.headers.get("x-forwarded-host"),
+            "forwarded_proto": request.headers.get("x-forwarded-proto"),
             "cookie": request.headers.get("cookie"),
         }, headers=[("set-cookie", "a=1; Path=/"), ("set-cookie", "b=2; Path=/")])
     if path == "/login":
@@ -89,11 +91,15 @@ def test_proxy_strips_frame_blocking(make_client):
 def test_proxy_forwards_request(make_client):
     with make_client() as client:
         client.cookies.set("session", "s1")
-        r = client.post("/proxy/trains/echo?station=ZH&x=1", content="hello")
+        # As cloudflared would send it: the public host, and https.
+        r = client.post("/proxy/trains/echo?station=ZH&x=1", content="hello",
+                        headers={"host": "dash.example", "x-forwarded-proto": "https"})
         data = r.json()
         assert data == {
             "method": "POST", "query": "station=ZH&x=1", "body": "hello",
-            "prefix": "/proxy/trains", "host": "10.0.0.5:5000", "cookie": "session=s1",
+            "prefix": "/proxy/trains", "host": "10.0.0.5:5000",
+            "forwarded_host": "dash.example", "forwarded_proto": "https",
+            "cookie": "session=s1",
         }
         assert r.headers.get_list("set-cookie") == ["a=1; Path=/", "b=2; Path=/"]
 
