@@ -1,20 +1,23 @@
 /* Dashboard styles. Apps shown in the dashboard can link this file
    (/static/dashboard.css) to match its look, including dark mode. */
 :root { --bg:#f6f7f9; --fg:#1d2024; --muted:#68707a; --card:#fff; --line:#dde1e6;
-        --accent:#2f6fde; --ok:#1f8a4c; --bad:#c9372c; --run:#b7791f; --code:#0f1419; --codefg:#d8dee4; }
+        --accent:#2f6fde; --tint:#e6eefc; --tint-fg:#1f5bc4; --ok:#1f8a4c; --bad:#c9372c; --run:#b7791f; --code:#0f1419; --codefg:#d8dee4; }
 @media (prefers-color-scheme: dark) {
-  :root { --bg:#14171b; --fg:#e4e7eb; --muted:#9aa3ad; --card:#1c2026; --line:#2c323a; --accent:#5b8ff0; }
+  :root { --bg:#14171b; --fg:#e4e7eb; --muted:#9aa3ad; --card:#1c2026; --line:#2c323a; --accent:#5b8ff0; --tint:#223453; --tint-fg:#8fb2f7; }
 }
 * { box-sizing: border-box; }
 body { margin:0; font:15px/1.5 system-ui, sans-serif; background:var(--bg); color:var(--fg);
        min-height:100vh; display:flex; flex-direction:column; }
-header { display:flex; flex-wrap:wrap; gap:8px 20px; align-items:center; padding:12px 16px; border-bottom:1px solid var(--line); background:var(--card); }
+header { display:flex; flex-wrap:wrap; gap:8px 20px; align-items:center; padding:8px 16px; border-bottom:1px solid var(--line); background:var(--card); }
 header .brand { font-weight:700; color:var(--fg); }
 header .crumb { font-weight:600; }
 header .crumb::before { content:"›"; margin:0 8px 0 -12px; color:var(--muted); font-weight:400; }
-header nav { display:flex; flex-wrap:wrap; gap:8px 20px; margin-left:auto; }
+/* Menu entries are tabs: padded, a hover background, the current page tinted. */
+header nav { display:flex; flex-wrap:wrap; gap:6px; margin-left:auto; }
+header nav a { padding:6px 12px; border-radius:6px; color:var(--fg); }
+header nav a:hover, header nav a:focus-visible { background:var(--bg); }
+header nav a[aria-current] { background:var(--tint); color:var(--tint-fg); font-weight:600; }
 a { color:var(--accent); text-decoration:none; }
-header a[aria-current] { font-weight:600; text-decoration:underline; text-underline-offset:4px; }
 main { width:100%; max-width:1000px; margin:0 auto; padding:16px; }
 .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:14px 16px; margin-bottom:12px; }
 .row { display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
