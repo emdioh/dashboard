@@ -32,3 +32,11 @@ services:
       - docker compose down
       - docker compose up -d --build
     # Steps also see $DEPLOY_REF and $DEPLOY_SHA.
+
+# Web utilities shown in the dashboard's menu. Each one's page is displayed
+# inside the dashboard, proxied through it under /proxy/<name>/, so it only
+# needs to be reachable from the dashboard (and sits behind its login).
+apps:
+  trains:
+    title: Train punctuality
+    url: http://10.0.0.30:5000

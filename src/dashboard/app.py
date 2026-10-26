@@ -4,29 +4,35 @@ import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import httpx2 as httpx
 from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import config, ssh
+from . import config, proxy, ssh
 from .deploy import Deployer
 
-templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
+HERE = Path(__file__).parent
+templates = Jinja2Templates(directory=HERE / "templates")
 templates.env.filters["ts"] = lambda t: time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t)) if t else ""
 
 
-def create_app(cfg: config.Config | None = None) -> FastAPI:
+def create_app(cfg: config.Config | None = None, http_transport: httpx.AsyncBaseTransport | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         app.state.cfg = cfg or config.load()
         ssh.ensure_key(app.state.cfg)
         app.state.deployer = Deployer(app.state.cfg)
-        yield
+        async with httpx.AsyncClient(transport=http_transport, timeout=proxy.TIMEOUT) as client:
+            app.state.http = client
+            yield
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None)
+    app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 
     def render(request: Request, name: str, **ctx) -> HTMLResponse:
-        return templates.TemplateResponse(request, name, ctx)
+        return templates.TemplateResponse(request, name, {"apps": request.app.state.cfg.apps, **ctx})
 
     @app.get("/")
     def index(request: Request):
@@ -76,5 +82,24 @@ def create_app(cfg: config.Config | None = None) -> FastAPI:
             raise HTTPException(404)
         ok, output = await ssh.check(cfg, cfg.hosts[name])
         return render(request, "_check.html", ok=ok, output=output)
+
+    def get_app(request: Request, name: str) -> config.App:
+        app_cfg = request.app.state.cfg.apps.get(name)
+        if not app_cfg:
+            raise HTTPException(404)
+        return app_cfg
+
+    @app.get("/apps/{name}")
+    def app_page(request: Request, name: str):
+        return render(request, "app.html", app=get_app(request, name))
+
+    @app.get("/proxy/{name}")
+    def proxy_root(request: Request, name: str):
+        # Relative URLs in the app only resolve correctly with the trailing slash.
+        return RedirectResponse(f"{proxy.prefix_for(get_app(request, name))}/")
+
+    @app.api_route("/proxy/{name}/{path:path}", methods=["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
+    async def proxy_request(request: Request, name: str, path: str):
+        return await proxy.forward(request.app.state.http, get_app(request, name), path, request)
 
     return app

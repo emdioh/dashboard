@@ -38,10 +38,24 @@ class Service:
 
 
 @dataclass
+class App:
+    """A web utility shown in the dashboard's menu and proxied under /proxy/<name>/."""
+
+    name: str
+    url: str
+    title: str = ""
+
+    def __post_init__(self):
+        self.url = self.url.rstrip("/")
+        self.title = self.title or self.name
+
+
+@dataclass
 class Config:
     data_dir: Path
     hosts: dict[str, Host]
     services: dict[str, Service]
+    apps: dict[str, App] = field(default_factory=dict)
 
     @property
     def key_path(self) -> Path:
@@ -73,5 +87,12 @@ def load(path: Path | None = None) -> Config:
             raise ValueError(f"service {name!r} has an empty steps list")
         services[name] = service
 
+    apps = {}
+    for name, a in (raw.get("apps") or {}).items():
+        app = App(name=name, **a)
+        if not app.url.startswith(("http://", "https://")):
+            raise ValueError(f"app {name!r} needs an http:// or https:// url")
+        apps[name] = app
+
     data_dir = Path(raw.get("data_dir") or DEFAULT_DATA_DIR)
-    return Config(data_dir=data_dir, hosts=hosts, services=services)
+    return Config(data_dir=data_dir, hosts=hosts, services=services, apps=apps)

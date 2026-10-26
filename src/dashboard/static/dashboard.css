@@ -1,0 +1,30 @@
+/* Dashboard styles. Apps shown in the dashboard can link this file
+   (/static/dashboard.css) to match its look, including dark mode. */
+:root { --bg:#f6f7f9; --fg:#1d2024; --muted:#68707a; --card:#fff; --line:#dde1e6;
+        --accent:#2f6fde; --ok:#1f8a4c; --bad:#c9372c; --run:#b7791f; --code:#0f1419; --codefg:#d8dee4; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#14171b; --fg:#e4e7eb; --muted:#9aa3ad; --card:#1c2026; --line:#2c323a; --accent:#5b8ff0; }
+}
+* { box-sizing: border-box; }
+body { margin:0; font:15px/1.5 system-ui, sans-serif; background:var(--bg); color:var(--fg);
+       min-height:100vh; display:flex; flex-direction:column; }
+header { display:flex; flex-wrap:wrap; gap:8px 20px; align-items:center; padding:12px 16px; border-bottom:1px solid var(--line); background:var(--card); }
+header strong { margin-right:auto; }
+a { color:var(--accent); text-decoration:none; }
+header a[aria-current] { font-weight:600; text-decoration:underline; text-underline-offset:4px; }
+header .sep { width:1px; align-self:stretch; background:var(--line); }
+main { width:100%; max-width:1000px; margin:0 auto; padding:16px; }
+.card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:14px 16px; margin-bottom:12px; }
+.row { display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
+.grow { flex:1; min-width:200px; }
+.muted { color:var(--muted); font-size:13px; }
+input[type=text] { font:inherit; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); width:220px; }
+button { font:inherit; padding:6px 14px; border:0; border-radius:6px; background:var(--accent); color:#fff; cursor:pointer; }
+button.secondary { background:transparent; color:var(--accent); border:1px solid var(--accent); }
+pre { background:var(--code); color:var(--codefg); padding:12px; border-radius:6px; overflow-x:auto; font-size:13px; margin:8px 0 0; white-space:pre-wrap; word-break:break-all; }
+.status { font-weight:600; }
+.status.ok { color:var(--ok); } .status.failed { color:var(--bad); } .status.running { color:var(--run); }
+.error { color:var(--bad); }
+table { width:100%; border-collapse:collapse; } td, th { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
+/* Apps are shown full-size under the header. */
+.app-frame { flex:1; width:100%; border:0; }

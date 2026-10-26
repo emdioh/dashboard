@@ -85,6 +85,30 @@ fail rather than being thrown away.
 
 Restart the service after editing the config.
 
+## Apps
+
+Small web utilities can be added to the dashboard's menu under `apps` in the
+config (`title` and `url`). Selecting one shows its page inside the
+dashboard; requests go through the dashboard to the app at
+`/proxy/<name>/…`, so the app only needs to be reachable from the dashboard
+LXC and is covered by the same Cloudflare Access login.
+
+For an app to work behind that prefix:
+
+- Use **relative URLs** for its own pages, assets and API calls
+  (`static/app.js`, `api/delays`, `fetch("api/delays")`), not ones starting
+  with `/`. Requests to `/…` would go to the dashboard instead of the app.
+- Redirects to `/…` and to the app's own URL are rewritten automatically,
+  and each request carries `X-Forwarded-Prefix: /proxy/<name>` for
+  frameworks that can build URLs from it.
+- Frame-blocking headers (`X-Frame-Options`, CSP `frame-ancestors`) are
+  removed so the page can be shown inside the dashboard.
+- To match the dashboard's look (including dark mode), link
+  `/static/dashboard.css` and use its classes (`card`, `row`, `muted`, …).
+
+WebSockets aren't proxied yet; plain HTTP, long polling and server-sent
+events work.
+
 ## Setting up SSH access
 
 The dashboard creates its key pair (`data_dir/id_ed25519`) on first start, or
