@@ -38,6 +38,28 @@ def rewrite_location(location: str, app: App) -> str:
     return location
 
 
+def raw_subpath(conn: HTTPConnection, app: App, path: str) -> str:
+    """The path after /proxy/<name>/ exactly as the browser sent it.
+
+    Starlette's `path` parameter is percent-decoded: forwarding it would turn
+    %2F into a path separator, %3F into a query and %23 into a fragment, and
+    the app would see a different URL (e.g. ids that contain a whole URL).
+    """
+    raw = conn.scope.get("raw_path")
+    start = prefix_for(app) + "/"
+    if isinstance(raw, bytes):
+        raw_str = raw.decode("latin-1")
+        if raw_str.startswith(start):
+            return raw_str[len(start):]
+    return path
+
+
+def raw_query(conn: HTTPConnection) -> str:
+    """The query string as sent (`conn.url.query` is re-parsed from the
+    decoded path, so a %3F in the path would replace it)."""
+    return conn.scope.get("query_string", b"").decode("latin-1")
+
+
 def request_headers(request: HTTPConnection, app: App) -> list[tuple[str, str]]:
     headers = [
         (k, v) for k, v in request.headers.items()
@@ -72,9 +94,9 @@ def response_headers(resp: httpx.Response, app: App) -> list[tuple[bytes, bytes]
 
 
 async def forward(client: httpx.AsyncClient, app: App, path: str, request: Request) -> Response:
-    url = f"{app.url}/{path}"
-    if request.url.query:
-        url += "?" + request.url.query
+    url = f"{app.url}/{raw_subpath(request, app, path)}"
+    if query := raw_query(request):
+        url += "?" + query
     upstream = client.build_request(
         request.method, url,
         headers=request_headers(request, app),
@@ -102,9 +124,9 @@ def close_code(code: int | None) -> int:
 
 async def forward_websocket(app: App, path: str, websocket: WebSocket) -> None:
     """Relay a WebSocket between the browser and the app until either side closes."""
-    url = re.sub(r"^http", "ws", app.url) + "/" + path
-    if websocket.url.query:
-        url += "?" + websocket.url.query
+    url = re.sub(r"^http", "ws", app.url) + "/" + raw_subpath(websocket, app, path)
+    if query := raw_query(websocket):
+        url += "?" + query
     # The client library sets its own handshake headers (Host, Sec-WebSocket-*).
     headers = [
         (k, v) for k, v in request_headers(websocket, app)

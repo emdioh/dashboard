@@ -123,6 +123,21 @@ def test_proxy_forwards_request(make_client):
         assert r.headers.get_list("set-cookie") == ["a=1; Path=/", "b=2; Path=/"]
 
 
+def test_proxy_forwards_encoded_path_unchanged(make_client):
+    # Ids that are whole URLs (Megachat's WhatsApp media) must reach the app
+    # byte for byte: decoding would turn %2F into "/" and %3F into a query.
+    seen = []
+
+    def handler(request):
+        seen.append(request.url.raw_path.decode())
+        return streamed(httpx.Response(200, text="ok"))
+
+    raw = "/api/x/http%3A//host%3A3000/a%2Fb%3Fc%23d%25e%40f.oga?w=1"
+    with make_client(handler) as client:
+        assert client.get("/proxy/trains" + raw).status_code == 200
+    assert seen == [raw]
+
+
 def test_proxy_redirects_stay_in_prefix(make_client):
     with make_client() as client:
         assert client.get("/proxy/trains", follow_redirects=False).headers["location"] == "/proxy/trains/"
